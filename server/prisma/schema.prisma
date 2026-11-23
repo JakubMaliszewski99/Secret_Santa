@@ -11,3 +11,84 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum DrawStatus {
+  DRAFT
+  COMPLETED
+}
+
+model Event {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+
+  draws Draw[]
+}
+
+model Draw {
+  id        String     @id @default(uuid()) @db.Uuid
+  eventId   String     @db.Uuid
+  name      String?
+  status    DrawStatus @default(DRAFT)
+  createdAt DateTime   @default(now())
+
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants Participant[]
+  exclusions   Exclusion[]
+  assignments  Assignment[]
+
+  @@index([eventId])
+}
+
+model Participant {
+  id     String  @id @default(uuid()) @db.Uuid
+  drawId String  @db.Uuid
+  name   String
+  email  String?
+
+  draw Draw @relation(fields: [drawId], references: [id], onDelete: Cascade)
+
+  exclusionsGiven    Exclusion[] @relation("ExclusionGiver")
+  exclusionsReceived Exclusion[] @relation("ExclusionTarget")
+
+  assignmentsGiven    Assignment[] @relation("AssignmentGiver")
+  assignmentsReceived Assignment[] @relation("AssignmentReceiver")
+
+  // Required for composite foreign keys
+  @@unique([drawId, id])
+  @@index([drawId])
+}
+
+model Exclusion {
+  id                    String @id @default(uuid()) @db.Uuid
+  drawId                String @db.Uuid
+  giverId               String @db.Uuid
+  excludedParticipantId String @db.Uuid
+
+  draw Draw @relation(fields: [drawId], references: [id], onDelete: Cascade)
+
+  giver Participant @relation("ExclusionGiver", fields: [drawId, giverId], references: [drawId, id], onDelete: Cascade)
+
+  excludedParticipant Participant @relation("ExclusionTarget", fields: [drawId, excludedParticipantId], references: [drawId, id], onDelete: Cascade)
+
+  // Prevent duplicate exclusions
+  @@unique([drawId, giverId, excludedParticipantId])
+  @@index([drawId])
+}
+
+model Assignment {
+  id         String @id @default(uuid()) @db.Uuid
+  drawId     String @db.Uuid
+  giverId    String @db.Uuid
+  receiverId String @db.Uuid
+
+  draw Draw @relation(fields: [drawId], references: [id], onDelete: Cascade)
+
+  giver Participant @relation("AssignmentGiver", fields: [drawId, giverId], references: [drawId, id], onDelete: Cascade)
+
+  receiver Participant @relation("AssignmentReceiver", fields: [drawId, receiverId], references: [drawId, id], onDelete: Cascade)
+
+  // One assignment per giver and one per receiver
+  @@unique([drawId, giverId])
+  @@unique([drawId, receiverId])
+}

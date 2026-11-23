@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 
+import eventRoutes from "./routes/event.routes.js"
+import drawRoutes from "./routes/draw.routes.js"
+
 export const app = express();
 
 app.use(cors({
@@ -15,3 +18,9 @@ app.get("/api/health", (_req, res) => {
         message: "Secret Santa API is running!"
     });
 });
+
+// Event routes
+app.use("/api/events", eventRoutes);
+
+// Draw routes
+app.use("/api", drawRoutes);
